@@ -3,15 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Wellness">
-<meta name="theme-color" content="#FAF8F5">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
 <title>My Wellness Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -72,8 +67,9 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--txt);min-h
 .s-dose{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .s-why{font-size:12px;color:var(--mut);line-height:1.45}
 .add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px}
-input[type=date]{font-family:'Nunito',sans-serif;font-size:14px;padding:9px 11px;border-radius:var(--rs);border:1px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;flex:1;min-width:0}
+input[type=date],input[type=password],input[type=number]{font-family:'Nunito',sans-serif;font-size:14px;padding:9px 11px;border-radius:var(--rs);border:1px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;flex:1;min-width:0}
 .btn-p{padding:9px 18px;border-radius:var(--rs);border:none;background:var(--txt);color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0}
+.btn-sec{padding:9px 18px;border-radius:var(--rs);border:1px solid var(--bdr2);background:var(--sur);color:var(--txt);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0}
 .pr{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bdr);font-size:14px}
 .pr:last-child{border-bottom:none}
 .del{background:none;border:none;color:var(--fnt);cursor:pointer;font-size:20px;line-height:1;padding:0 2px}
@@ -91,6 +87,10 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:14px;padding:9px 11px
 .welcome{text-align:center;padding:32px 16px 16px}
 .welcome h2{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin-bottom:10px}
 .welcome p{font-size:14px;color:var(--mut);line-height:1.7;margin:0 auto 20px}
+.loading{text-align:center;padding:3rem;color:var(--mut);font-size:14px}
+.pin-box{display:flex;gap:10px;align-items:center;margin-top:12px}
+.pin-box input{max-width:120px;text-align:center;font-size:20px;letter-spacing:8px}
+.err{color:var(--m);font-size:13px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -98,7 +98,7 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:14px;padding:9px 11px
   <div class="hdr-t">My Wellness Tracker</div>
   <div class="hdr-s" id="hdrS">Your personal guide by cycle phase</div>
 </div>
-<div class="main" id="main"><div style="padding:2rem;text-align:center;color:var(--mut)">Loading...</div></div>
+<div class="main" id="main"><div class="loading">Loading...</div></div>
 <nav class="bnav" id="bnav" style="display:none">
   <button class="nb on" id="nb-today" onclick="go('today')"><span class="nb-ic">✦</span>Today</button>
   <button class="nb" id="nb-exercise" onclick="go('exercise')"><span class="nb-ic">💪</span>Exercise</button>
@@ -107,6 +107,10 @@ input[type=date]{font-family:'Nunito',sans-serif;font-size:14px;padding:9px 11px
   <button class="nb" id="nb-log" onclick="go('log')"><span class="nb-ic">📅</span>Log</button>
 </nav>
 <script>
+const SURL='https://djkdbvcymouywxhwmlrf.supabase.co';
+const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqa2RidmN5bW91eXd4aHdtbHJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMTYyNjIsImV4cCI6MjA4NTY5MjI2Mn0.zBWJ0vRnUHMju2PCRPvz5nZB7h77R_n1dskOQL3iW0I';
+const db = window.supabase.createClient(SURL, SKEY);
+
 const PH={
   menstrual:{key:'menstrual',name:'Period Phase',next:'Follicular',c:'#C4756A',bg:'#FDF1EF',lt:'#F5D5D0',dk:'#6B3530',
     desc:'Your uterine lining sheds and oestrogen and progesterone are at their lowest. Energy drops — this is biology, not weakness.',
@@ -120,7 +124,6 @@ const PH={
     exTip:'This is the one week where rest genuinely outperforms training. Your strength and capacity will return fully in the follicular phase — use this week to recover properly.',
     showWeightsWhy:false,showSauna:false,
     sleep:['You will likely want more sleep than usual — this is biological, not laziness. Honour it.','Magnesium glycinate before bed helps significantly with cramp-related sleep disruption','A warm water bottle on your lower back eases cramping and helps you fall asleep more easily','Avoid alcohol this week — it worsens cramps and fragments the deep sleep stages you need most','Keep your room cool around 18°C — your body temperature is slightly elevated during menstruation']},
-
   follicular:{key:'follicular',name:'Follicular Phase',next:'Ovulatory',c:'#5A8A6E',bg:'#EFF7F2',lt:'#C8E4D4',dk:'#2A5040',
     desc:'Oestrogen rises steadily as follicles develop. Energy, mood and physical capacity all improve noticeably. Generally your best training window of the month.',
     tagline:'Energy rising — lean into your favourite activities',
@@ -133,7 +136,6 @@ const PH={
     exTip:'Your existing activities are excellent and should be kept. Adding resistance training twice a week is the single most impactful change you can make at 40 — for bone density, metabolism and hormonal health.',
     showWeightsWhy:true,showSauna:true,
     sleep:['Sleep quality is generally good in this phase — recover well and use it to build consistent habits','Aim for 7–9 hours — your body rebuilds muscle and bone during sleep, especially after resistance training','Morning light within 30 minutes of waking helps regulate energy and mood all day','Use this good sleep window to strengthen habits that protect you in the harder phases ahead']},
-
   ovulatory:{key:'ovulatory',name:'Ovulatory Phase',next:'Luteal',c:'#C09040',bg:'#FDF8EE',lt:'#F0DFB0',dk:'#6B4E10',
     desc:'Oestrogen peaks and the egg is released. Physical and cognitive performance are typically at their monthly highest. Strength, coordination and pain tolerance are all elevated.',
     tagline:'Peak energy — your strongest days of the month',
@@ -146,7 +148,6 @@ const PH={
     exTip:'This is your best week to attempt things that feel hard — heavier weights, longer routes, faster intervals. Coordination is sharper, pain tolerance higher and recovery is fastest. Use it.',
     showWeightsWhy:false,showSauna:true,
     sleep:['You may feel you need slightly less sleep and still feel great — normal around ovulation','A small drop in oestrogen just after ovulation can cause one restless night — temporary and common','Keep your room cool around 18°C even when energy is high','Maintain the no-screens habit before bed even in high-energy phases — it protects luteal sleep quality']},
-
   luteal:{key:'luteal',name:'Luteal Phase',next:'Period',c:'#7068A8',bg:'#F4F2FA',lt:'#D0CCE8',dk:'#3C3460',
     desc:'Progesterone rises after ovulation then falls. Energy, mood and sleep quality tend to decline in the second half. This is hormonal — not a reflection of fitness or character.',
     tagline:'Wind down gently — support your body this week',
@@ -162,18 +163,59 @@ const PH={
 };
 
 const SEGS=[{key:'menstrual',label:'Period',base:5,c:'#C4756A'},{key:'follicular',label:'Follicular',base:8,c:'#5A8A6E'},{key:'ovulatory',label:'Ovulatory',base:4,c:'#C09040'},{key:'luteal',label:'Luteal',base:11,c:'#7068A8'}];
-
 const SUPPS=[
-  {ico:'⚡',name:'Creatine monohydrate',dose:'3–5g daily, any time',ev:'s',evLabel:'Strong evidence',why:'One of the most researched supplements. In women at 40+, it improves muscle strength, brain fog, cognitive function and mood — not just athletic performance. Mix into water or any drink.'},
-  {ico:'☀️',name:'Vitamin D3 with K2',dose:'Morning, with food',ev:'s',evLabel:'Strong evidence',why:'D3 deficiency is common and linked to bone loss, low mood, immune dysfunction and fatigue. K2 directs calcium to bones rather than arteries. Essential given seasonal variation in sunlight exposure.'},
-  {ico:'🐟',name:'Omega-3s (EPA + DHA)',dose:'1–2g daily with a meal',ev:'s',evLabel:'Strong evidence',why:'Fish oil or algae-based capsules. Reduces chronic inflammation, supports brain health and mood, and protects cardiovascular health. One of the most consistently supported supplements.'},
-  {ico:'🌙',name:'Magnesium glycinate',dose:'200–400mg in the evening',ev:'g',evLabel:'Good evidence',why:'Most women are deficient. Improves sleep quality, reduces cramps and muscle soreness, and supports mood. Glycinate form is gentler on the stomach than magnesium citrate or oxide.'},
-  {ico:'🩸',name:'Iron',dose:'Only if blood test confirms low',ev:'e',evLabel:'Get tested first',why:'Common in active women with a GF/DF diet and regular blood loss. Symptoms: fatigue, brain fog, cold hands, hair thinning. Supplementing unnecessarily causes harm — get an annual blood panel.'}
+  {ico:'⚡',name:'Creatine monohydrate',dose:'3–5g daily, any time',ev:'s',evLabel:'Strong evidence',why:'One of the most researched supplements. In women at 40+, it improves muscle strength, brain fog, cognitive function and mood. Mix into water or any drink.'},
+  {ico:'☀️',name:'Vitamin D3 with K2',dose:'Morning, with food',ev:'s',evLabel:'Strong evidence',why:'D3 deficiency is common and linked to bone loss, low mood and fatigue. K2 directs calcium to bones rather than arteries.'},
+  {ico:'🐟',name:'Omega-3s (EPA + DHA)',dose:'1–2g daily with a meal',ev:'s',evLabel:'Strong evidence',why:'Fish oil or algae-based capsules. Reduces chronic inflammation, supports brain health and mood.'},
+  {ico:'🌙',name:'Magnesium glycinate',dose:'200–400mg in the evening',ev:'g',evLabel:'Good evidence',why:'Most women are deficient. Improves sleep quality, reduces cramps and supports mood. Gentler than magnesium citrate or oxide.'},
+  {ico:'🩸',name:'Iron',dose:'Only if blood test confirms low',ev:'e',evLabel:'Get tested first',why:'Common in active women with GF/DF diet and regular blood loss. Get an annual blood panel before supplementing.'}
 ];
 
-let S={periods:[],view:'today'};
-function save(){try{localStorage.setItem('cwt6',JSON.stringify({periods:S.periods,view:S.view}))}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem('cwt6')||'{}');S.periods=d.periods||[];S.view=d.view||'today'}catch(e){}}
+let S={periods:[],view:'today',pin:null};
+
+async function loadFromDB(){
+  const {data}=await db.from('wellness_periods').select('period_date').eq('user_pin',S.pin).order('period_date',{ascending:false});
+  if(data) S.periods=data.map(r=>r.period_date);
+}
+
+async function addP(inputId){
+  const v=document.getElementById(inputId)?.value;
+  if(!v){alert('Please select a date.');return}
+  if(S.periods.includes(v))return;
+  const{error}=await db.from('wellness_periods').insert({user_pin:S.pin,period_date:v});
+  if(!error){S.periods.push(v);render();}
+  else alert('Could not save. Please try again.');
+}
+
+async function delP(d){
+  if(!confirm('Remove '+fmt(d)+'?'))return;
+  const{error}=await db.from('wellness_periods').delete().eq('user_pin',S.pin).eq('period_date',d);
+  if(!error){S.periods=S.periods.filter(p=>p!==d);render();}
+}
+
+async function setPin(isNew){
+  const input=document.getElementById('pinInput');
+  const pin=input?.value?.trim();
+  if(!pin||pin.length<4){document.getElementById('pinErr').textContent='Please enter a 4-digit PIN';return;}
+  if(isNew){
+    const confirm2=document.getElementById('pinConfirm')?.value?.trim();
+    if(pin!==confirm2){document.getElementById('pinErr').textContent='PINs do not match';return;}
+  }
+  S.pin=pin;
+  localStorage.setItem('wt_pin',pin);
+  await loadFromDB();
+  render();
+}
+
+async function restorePin(){
+  const input=document.getElementById('restorePin');
+  const pin=input?.value?.trim();
+  if(!pin||pin.length<4){document.getElementById('restoreErr').textContent='Please enter your 4-digit PIN';return;}
+  S.pin=pin;
+  await loadFromDB();
+  localStorage.setItem('wt_pin',pin);
+  render();
+}
 
 function avgCycle(){
   if(S.periods.length<2)return null;
@@ -185,7 +227,8 @@ function avgCycle(){
 
 function phaseInfo(){
   if(!S.periods.length)return null;
-  const last=[...S.periods].sort((a,b)=>new Date(b)-new Date(a))[0];
+  const sorted=[...S.periods].sort((a,b)=>new Date(b)-new Date(a));
+  const last=sorted[0];
   const today=new Date();today.setHours(0,0,0,0);
   const lp=new Date(last);lp.setHours(0,0,0,0);
   const raw=Math.floor((today-lp)/86400000)+1;
@@ -207,21 +250,64 @@ function td(){return new Date().toISOString().split('T')[0]}
 function fmt(d){return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
 function fmtS(d){return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
 function todayFmt(){return new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}
-
-function go(v){S.view=v;save();render();window.scrollTo(0,0)}
+function go(v){S.view=v;render();window.scrollTo(0,0)}
 
 function render(){
   const main=document.getElementById('main');
   const bnav=document.getElementById('bnav');
   document.getElementById('hdrS').textContent=todayFmt();
-  if(!S.periods.length){bnav.style.display='none';renderWelcome(main);return}
+
+  if(!S.pin){
+    bnav.style.display='none';
+    main.innerHTML=`
+      <div class="welcome">
+        <div style="font-size:52px;margin-bottom:14px">🌸</div>
+        <h2>My Wellness Tracker</h2>
+        <p>Create a 4-digit PIN to protect your data. Your PIN means your period dates are saved permanently — they will never be lost even if you clear your browser.</p>
+      </div>
+      <div class="card">
+        <div class="ctitle">Create your PIN</div>
+        <p style="font-size:13px;color:var(--mut);line-height:1.6;margin-bottom:12px">Choose any 4-digit number you will remember.</p>
+        <div class="pin-box"><input type="password" id="pinInput" maxlength="6" placeholder="PIN" inputmode="numeric"></div>
+        <div class="pin-box" style="margin-top:8px"><input type="password" id="pinConfirm" maxlength="6" placeholder="Confirm PIN" inputmode="numeric"></div>
+        <div class="err" id="pinErr"></div>
+        <div style="margin-top:12px"><button class="btn-p" onclick="setPin(true)">Create PIN & Start</button></div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Already have a PIN?</div>
+        <p style="font-size:13px;color:var(--mut);line-height:1.6;margin-bottom:12px">If you have used this app before, enter your existing PIN to restore all your data.</p>
+        <div class="pin-box"><input type="password" id="restorePin" maxlength="6" placeholder="Your PIN" inputmode="numeric"></div>
+        <div class="err" id="restoreErr"></div>
+        <div style="margin-top:12px"><button class="btn-sec" onclick="restorePin()">Restore my data</button></div>
+      </div>`;
+    return;
+  }
+
+  const info=phaseInfo();
+  const avg=avgCycle();
+
+  if(!info){
+    bnav.style.display='none';
+    main.innerHTML=`
+      <div class="welcome">
+        <div style="font-size:52px;margin-bottom:14px">🌸</div>
+        <h2>My Wellness Tracker</h2>
+        <p>Log the start of each period as it happens. The app learns your real cycle length and guides you through every phase.</p>
+      </div>
+      <div class="card">
+        <div class="ctitle">When did your last period start?</div>
+        <p style="font-size:13px;color:var(--mut);line-height:1.6;margin-bottom:12px">Enter the <strong>first day of actual red bleeding</strong> — not spotting.</p>
+        <div class="add-row"><input type="date" id="fd" max="${td()}"><button class="btn-p" onclick="addP('fd')">Begin</button></div>
+      </div>`;
+    return;
+  }
+
   bnav.style.display='flex';
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   const nb=document.getElementById('nb-'+S.view);
   if(nb)nb.classList.add('on');
-  const info=phaseInfo();
+
   const ph=PH[info.phase];
-  const avg=avgCycle();
   const{segDays}=info;
 
   const cbar=SEGS.map((s,i)=>`<div style="flex:${segDays[i]}"><div class="cseg" style="background:${s.c};opacity:${s.key===info.phase?1:0.2}"></div><div class="clbl">${s.label}</div></div>`).join('');
@@ -267,69 +353,38 @@ function render(){
       <div class="card" style="border-color:var(--llt);background:var(--lbg)">
         <div class="ctitle" style="color:var(--ldk)">At 40 — worth knowing</div>
         <div class="ai"><div class="adot" style="background:var(--l)"></div><div class="at" style="color:var(--ldk)">Perimenopause often begins in the early-to-mid 40s — irregular cycles are one of the early signs. This app is built with exactly this life stage in mind.</div></div>
-        <div class="ai"><div class="adot" style="background:var(--l)"></div><div class="at" style="color:var(--ldk)">Protein, resistance training and sleep quality become more important as hormones shift — not less. Getting ahead of this now has a meaningful long-term impact.</div></div>
-        <div class="ai"><div class="adot" style="background:var(--l)"></div><div class="at" style="color:var(--ldk)">Your existing activities — Zumba, yoga, swimming, cycling — are an excellent foundation. They are not the problem. Adding weights and occasional HIIT on top is what completes the picture.</div></div>
+        <div class="ai"><div class="adot" style="background:var(--l)"></div><div class="at" style="color:var(--ldk)">Protein, resistance training and sleep quality become more important as hormones shift — not less.</div></div>
+        <div class="ai"><div class="adot" style="background:var(--l)"></div><div class="at" style="color:var(--ldk)">Your existing activities — Zumba, yoga, swimming, cycling — are an excellent foundation. Adding weights and occasional HIIT completes the picture.</div></div>
       </div>
       ${!avg?`<div class="notice n-amber">Log one more period date to replace the 28-day default with your real cycle length.</div>`:''}`;
   }
 
   if(S.view==='exercise'){
     const avoidHtml=ph.exCaution.length?`<div class="card"><div class="ctitle" style="color:var(--m)">Ease off this phase</div>${ph.exCaution.map(c=>`<div class="avoid-item"><span style="color:var(--m);font-weight:700;flex-shrink:0">–</span><span>${c}</span></div>`).join('')}</div>`:'';
-    const weightsHtml=ph.showWeightsWhy?`<div class="card" style="border-color:var(--flt)"><div class="ctitle">Why resistance training matters at 40 <span class="ev ev-s">Strong evidence</span></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Bone density:</strong> The most effective intervention for preventing osteoporosis — more so than calcium supplements or moderate cardio alone. Critical after 40.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Metabolism:</strong> Muscle mass declines from around 35 without resistance work. This is the primary driver of slowing metabolism with age — not ageing itself.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Hormones:</strong> Heavy lifting stimulates growth hormone and testosterone — the hormones beginning to decline in your 40s.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">Your existing activities are excellent and should be kept. Weights twice a week makes all of them more effective.</div></div></div>`:'';
-    const saunaHtml=ph.showSauna?`<div class="card" style="border-color:${ph.lt}"><div class="ctitle">Heat therapy — if you have access <span class="ev ev-e">Emerging evidence</span></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">20 minutes in a sauna after exercise has shown early promise for women: improved insulin response, body composition and muscle metabolism. Evidence is promising but not yet definitive.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">Heat therapy appears more beneficial for women than cold water immersion. Ice baths, popular in general fitness, show less hormonal benefit for women specifically — though cold water does have other benefits.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">Not essential — but if you have sauna access, post-exercise sessions are worth trying in this phase.</div></div></div>`:'';
+    const weightsHtml=ph.showWeightsWhy?`<div class="card" style="border-color:var(--flt)"><div class="ctitle">Why resistance training matters at 40 <span class="ev ev-s">Strong evidence</span></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Bone density:</strong> Most effective intervention for preventing osteoporosis — more so than calcium supplements or moderate cardio alone.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Metabolism:</strong> Muscle mass declines from around 35 without resistance work — the primary driver of slowing metabolism with age.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Hormones:</strong> Heavy lifting stimulates growth hormone and testosterone — the hormones beginning to decline in your 40s.</div></div></div>`:'';
+    const saunaHtml=ph.showSauna?`<div class="card" style="border-color:${ph.lt}"><div class="ctitle">Heat therapy — if you have access <span class="ev ev-e">Emerging evidence</span></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">20 minutes in a sauna after exercise has shown early promise for women: improved insulin response, body composition and muscle metabolism.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">Heat therapy appears more beneficial for women than cold water immersion for hormonal health specifically.</div></div></div>`:'';
     body=`
-      <div class="card">
-        <div class="ctitle">Best activities right now</div>
-        <p style="font-size:13px;color:var(--mut);margin-bottom:12px;line-height:1.5">${ph.exSummary}</p>
-        ${ph.exBest.map(e=>`<div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">${e.t}${e.add?'<span class="ev ev-g" style="margin-left:6px">Try adding this</span>':''}</div></div>`).join('')}
-      </div>
+      <div class="card"><div class="ctitle">Best activities right now</div><p style="font-size:13px;color:var(--mut);margin-bottom:12px;line-height:1.5">${ph.exSummary}</p>${ph.exBest.map(e=>`<div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">${e.t}${e.add?'<span class="ev ev-g" style="margin-left:6px">Try adding this</span>':''}</div></div>`).join('')}</div>
       ${avoidHtml}
       <div class="tip" style="background:${ph.bg};border-color:${ph.c}"><div class="tip-l" style="color:${ph.dk}">Phase tip</div><div class="tip-t" style="color:${ph.dk}">${ph.exTip}</div></div>
       <div class="notice n-purple" style="font-size:12px"><strong>Evidence note:</strong> ${ph.exEv}</div>
-      ${weightsHtml}
-      ${saunaHtml}
-      <div class="card" style="border-color:${ph.lt}">
-        <div class="ctitle">Your existing activities — keep all of them <span class="ev ev-s">Strong evidence</span></div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Swimming, cycling, walking, Zumba, yoga</strong> all have strong independent evidence for cardiovascular health, mental wellbeing, cortisol regulation and longevity. They are not inferior to HIIT and weights — they work alongside them.</div></div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">The best overall approach is variety across intensities — some easy, some hard, some skill-based like Zumba, some strength-based. No single type of training covers everything.</div></div>
-      </div>`;
+      ${weightsHtml}${saunaHtml}
+      <div class="card" style="border-color:${ph.lt}"><div class="ctitle">Your existing activities — keep all of them <span class="ev ev-s">Strong evidence</span></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Swimming, cycling, walking, Zumba, yoga</strong> all have strong independent evidence. They work alongside HIIT and weights — not instead of them.</div></div></div>`;
   }
 
   if(S.view==='nutrition'){
     body=`
-      <div class="card">
-        <div class="ctitle">Nutrition this phase <span class="ev ev-s">GF · Dairy-free</span></div>
-        ${ph.nut.map(n=>`<div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">${n}</div></div>`).join('')}
-      </div>
-      <div class="notice n-purple" style="font-size:12px"><strong>Honest evidence note:</strong> ${ph.nutEv}</div>
-      <div class="card" style="border-color:${ph.lt}">
-        <div class="ctitle">Protein — most important at 40 <span class="ev ev-s">Strong evidence</span></div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Daily target:</strong> 1.6–2.0g per kg of body weight. Mainstream sports science consensus — not specific to any one researcher.</div></div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>After training:</strong> 35g within 45 minutes — eggs, tinned salmon, chicken, tofu, dairy-free protein shake</div></div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Why more at 40:</strong> Muscle becomes less responsive to the protein signal after 40. You need more, not less, to achieve the same result as your 30s.</div></div>
-      </div>
-      <div class="card">
-        <div class="ctitle">Daily supplements <span class="ev ev-s">Evidence-based</span></div>
-        ${SUPPS.map(s=>`<div class="supp-item"><div class="s-ico">${s.ico}</div><div><div class="s-name">${s.name} <span class="ev ${s.ev==='s'?'ev-s':s.ev==='g'?'ev-g':'ev-e'}">${s.evLabel}</span></div><div class="s-dose">${s.dose}</div><div class="s-why">${s.why}</div></div></div>`).join('')}
-      </div>`;
+      <div class="card"><div class="ctitle">Nutrition this phase <span class="ev ev-s">GF · Dairy-free</span></div>${ph.nut.map(n=>`<div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">${n}</div></div>`).join('')}</div>
+      <div class="notice n-purple" style="font-size:12px"><strong>Evidence note:</strong> ${ph.nutEv}</div>
+      <div class="card" style="border-color:${ph.lt}"><div class="ctitle">Protein — most important at 40 <span class="ev ev-s">Strong evidence</span></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Daily target:</strong> 1.6–2.0g per kg of body weight.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>After training:</strong> 35g within 45 minutes — eggs, tinned salmon, chicken, tofu, dairy-free protein shake</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Why more at 40:</strong> Muscle becomes less responsive to the protein signal after 40. You need more, not less.</div></div></div>
+      <div class="card"><div class="ctitle">Daily supplements <span class="ev ev-s">Evidence-based</span></div>${SUPPS.map(s=>`<div class="supp-item"><div class="s-ico">${s.ico}</div><div><div class="s-name">${s.name} <span class="ev ${s.ev==='s'?'ev-s':s.ev==='g'?'ev-g':'ev-e'}">${s.evLabel}</span></div><div class="s-dose">${s.dose}</div><div class="s-why">${s.why}</div></div></div>`).join('')}</div>`;
   }
 
   if(S.view==='sleep'){
     body=`
-      <div class="card">
-        <div class="ctitle">Sleep — ${ph.name} <span class="ev ev-s">Well documented</span></div>
-        ${ph.sleep.map(s=>`<div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">${s}</div></div>`).join('')}
-      </div>
-      <div class="card">
-        <div class="ctitle">Always helpful — every phase <span class="ev ev-s">Strong evidence</span></div>
-        ${['Dark room — blackout curtains make a measurable difference to sleep depth and duration','Cool temperature around 18°C — especially important in the luteal phase when body temperature rises','No screens 1 hour before bed — blue light directly suppresses melatonin. This is well-established.','Consistent wake time, even on weekends — the single most impactful sleep habit you can build','Magnesium glycinate (200–400mg) before bed — beneficial in any phase, not just luteal','Tart cherry juice in the evening — natural melatonin source with good evidence for improving sleep onset'].map(s=>`<div class="ai"><div class="adot" style="background:var(--bdr2)"></div><div class="at" style="color:var(--mut)">${s}</div></div>`).join('')}
-      </div>
-      <div class="card">
-        <div class="ctitle">Tools for difficult nights</div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>NSDR / Yoga Nidra:</strong> A 10–20 minute guided body scan provides genuine physiological rest even without sleep. Search on YouTube — free and well-studied.</div></div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>4-7-8 breathing:</strong> Inhale 4 counts, hold 7, exhale 8. Repeat four times. Activates the parasympathetic nervous system and reduces cortisol within minutes.</div></div>
-        <div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Do not check the clock:</strong> Watching the time during a poor night increases cortisol and makes sleep harder. Phone face down before bed.</div></div>
-      </div>`;
+      <div class="card"><div class="ctitle">Sleep — ${ph.name}</div>${ph.sleep.map(s=>`<div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at">${s}</div></div>`).join('')}</div>
+      <div class="card"><div class="ctitle">Always helpful — every phase <span class="ev ev-s">Strong evidence</span></div>${['Dark room — blackout curtains make a measurable difference','Cool temperature around 18°C','No screens 1 hour before bed — blue light directly suppresses melatonin','Consistent wake time even on weekends','Magnesium glycinate (200–400mg) before bed','Tart cherry juice in the evening — natural melatonin'].map(s=>`<div class="ai"><div class="adot" style="background:var(--bdr2)"></div><div class="at" style="color:var(--mut)">${s}</div></div>`).join('')}</div>
+      <div class="card"><div class="ctitle">For difficult nights</div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>Yoga Nidra / NSDR:</strong> 10–20 min guided body scan on YouTube — provides real rest even without sleep.</div></div><div class="ai"><div class="adot" style="background:${ph.c}"></div><div class="at"><strong>4-7-8 breathing:</strong> Inhale 4, hold 7, exhale 8. Repeat 4 times. Reduces cortisol fast.</div></div></div>`;
   }
 
   if(S.view==='log'){
@@ -337,49 +392,30 @@ function render(){
     const asc=[...S.periods].sort((a,b)=>new Date(a)-new Date(b));
     const gaps=[];
     for(let i=1;i<asc.length;i++){const d=Math.round((new Date(asc[i])-new Date(asc[i-1]))/86400000);if(d>15&&d<65)gaps.push({from:fmtS(asc[i-1]),to:fmtS(asc[i]),days:d})}
-    const av=avgCycle();
-    const n=S.periods.length;
+    const av=avgCycle();const n=S.periods.length;
     const cc=n>=5?'var(--f)':n>=3?'var(--o)':'var(--m)';
     const ct=n>=5?'High accuracy':n>=3?'Building accuracy':'Low — add more dates';
     body=`
-      <div class="notice n-green">Log the <strong>first day of actual red bleeding</strong> — not spotting. Add it as soon as your period starts each month. Phase guidance updates automatically.</div>
-      <div class="card">
-        <div class="ctitle">Add a period</div>
-        <div class="add-row"><input type="date" id="nd" max="${td()}"><button class="btn-p" onclick="addP('nd')">Add</button></div>
-      </div>
-      ${sorted.length?`<div class="card"><div class="ctitle">Period history</div>${sorted.map((d,i)=>`<div class="pr"><span>${fmt(d)}${i===0?'<span class="tag-l">Latest</span>':''}</span><button class="del" onclick="delP('${d}')">x</button></div>`).join('')}</div>`:''}
+      <div class="notice n-green">Log the <strong>first day of actual red bleeding</strong> — not spotting.</div>
+      <div class="card"><div class="ctitle">Add a period</div><div class="add-row"><input type="date" id="nd" max="${td()}"><button class="btn-p" onclick="addP('nd')">Add</button></div></div>
+      ${sorted.length?`<div class="card"><div class="ctitle">Period history</div>${sorted.map((d,i)=>`<div class="pr"><span>${fmt(d)}${i===0?'<span class="tag-l">Latest</span>':''}</span><button class="del" onclick="delP('${d}')">×</button></div>`).join('')}</div>`:''}
       ${gaps.length?`<div class="card"><div class="ctitle">Your cycle lengths <span class="ev" style="background:${cc}18;color:${cc}">${ct}</span></div>${gaps.map(g=>`<div class="clen"><span style="color:var(--mut);font-size:12px">${g.from} to ${g.to}</span><span style="font-weight:700">${g.days}d</span></div>`).join('')}${av?`<div style="margin-top:11px;padding:9px 13px;background:var(--bg);border-radius:var(--rs);display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;color:var(--mut)">Your average cycle</span><span style="font-size:18px;font-weight:700">${av} days</span></div>`:''}</div>`:''}
-      <div class="card"><div class="ctitle" style="color:var(--fnt)">Note on contraception</div><p style="font-size:13px;color:var(--mut);line-height:1.6">If you use hormonal contraception (combined pill, hormonal IUD, implant or injection) your natural cycle is suppressed and phase guidance will not be accurate. Exercise, sleep and supplement advice remains fully relevant regardless.</p></div>`;
+      <div class="card"><div class="ctitle" style="color:var(--fnt)">Your PIN</div><p style="font-size:13px;color:var(--mut);line-height:1.6">Your PIN is <strong>${S.pin}</strong>. Keep this safe — you will need it if you change device or clear your browser. Your data is saved permanently in the cloud.</p></div>`;
   }
 
   main.innerHTML=hero+body;
 }
 
-function renderWelcome(main){
-  main.innerHTML=`
-    <div class="welcome">
-      <div style="font-size:52px;margin-bottom:14px">🌸</div>
-      <h2>Your personal wellness tracker</h2>
-      <p>Log the start of each period as it happens and the app guides you through every phase — exercise, nutrition, sleep and supplements — based on where you are in your cycle.</p>
-    </div>
-    <div class="card">
-      <div class="ctitle">When did your last period start?</div>
-      <p style="font-size:13px;color:var(--mut);line-height:1.6;margin-bottom:12px">Enter the <strong>first day of actual red bleeding</strong> — not spotting. Your best estimate is fine to start.</p>
-      <div class="add-row"><input type="date" id="fd" max="${td()}"><button class="btn-p" onclick="addP('fd')">Begin</button></div>
-    </div>
-    <div class="notice n-amber">Full guidance from your very first entry. The more period dates you log over time, the more accurately the app learns your personal cycle. Irregular cycles are handled automatically.</div>
-    <div class="card">
-      <div class="ctitle">Save to your phone home screen</div>
-      <div class="ai"><div class="adot" style="background:var(--f)"></div><div class="at" style="color:var(--mut)"><strong>iPhone (Safari):</strong> Tap the Share button, then "Add to Home Screen"</div></div>
-      <div class="ai"><div class="adot" style="background:var(--f)"></div><div class="at" style="color:var(--mut)"><strong>Android (Chrome):</strong> Tap the three-dot menu, then "Add to Home Screen"</div></div>
-      <div class="ai"><div class="adot" style="background:var(--f)"></div><div class="at" style="color:var(--mut)">All data stays private on your device — nothing is sent anywhere</div></div>
-    </div>`;
+async function init(){
+  const pin=localStorage.getItem('wt_pin');
+  if(pin){
+    S.pin=pin;
+    await loadFromDB();
+  }
+  render();
 }
 
-function addP(id){const v=document.getElementById(id)?.value;if(!v){alert('Please select a date.');return}if(!S.periods.includes(v)){S.periods.push(v);save()}render()}
-function delP(d){if(!confirm('Remove '+fmt(d)+'?'))return;S.periods=S.periods.filter(p=>p!==d);save();render()}
-
-load();render();
+init();
 </script>
 </body>
 </html>
